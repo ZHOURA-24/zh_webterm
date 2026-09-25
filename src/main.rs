@@ -35,8 +35,8 @@ struct Resize {
 }
 
 fn load_config() -> (u16, Option<String>) {
-    let mut port = None;
-    let mut password = None;
+    let mut port = std::env::var("PORT").ok().and_then(|v| v.parse().ok());
+    let mut password = std::env::var("WEBTERM_PASSWORD").ok();
 
     let exe_env = std::env::current_exe()
         .ok()

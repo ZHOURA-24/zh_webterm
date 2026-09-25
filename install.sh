@@ -19,6 +19,10 @@ sudo chmod +x /usr/local/bin/zh_webterm
 if command -v systemctl >/dev/null 2>&1; then
     echo "Setting up systemd service..."
 
+    TARGET_USER="${SUDO_USER:-$USER}"
+    TARGET_HOME=$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)
+    TARGET_HOME="${TARGET_HOME:-/root}"
+
     CONFIG_FILE="/etc/zh_webterm.env"
     NEW_INSTALL=0
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -28,13 +32,10 @@ if command -v systemctl >/dev/null 2>&1; then
 PORT=2424
 WEBTERM_PASSWORD=$GEN_PASSWORD
 EOF
+        sudo chown "$TARGET_USER" "$CONFIG_FILE"
         sudo chmod 600 "$CONFIG_FILE"
         NEW_INSTALL=1
     fi
-
-    TARGET_USER="${SUDO_USER:-$USER}"
-    TARGET_HOME=$(getent passwd "$TARGET_USER" 2>/dev/null | cut -d: -f6)
-    TARGET_HOME="${TARGET_HOME:-/root}"
 
     sudo tee /etc/systemd/system/zh_webterm.service > /dev/null << EOF
 [Unit]
