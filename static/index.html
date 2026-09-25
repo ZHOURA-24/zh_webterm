@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>zh_webterm</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+    }
+
+    #term {
+      height: 100vh;
+      padding: 4px;
+    }
+
+    #pw {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 16px;
+      background: #111;
+      border: 1px solid #444;
+      color: #fff;
+      border-radius: 6px;
+      outline: none;
+      font-family: monospace;
+      font-size: 15px;
+      text-align: center;
+      display: none;
+      z-index: 9999;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+
+    #pw.error {
+      border-color: #f55;
+    }
+  </style>
+</head>
+
+<body>
+  <input type="password" id="pw" placeholder="Password" autofocus />
+  <div id="term"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+  <script>
+    const term = new Terminal({ cursorBlink: true, fontSize: 14, theme: { background: '#000' } });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById('term'));
+    fit.fit();
+
+    let ws;
+    const resize = () => ws?.readyState === 1 && ws.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
+    const input = document.getElementById('pw');
+
+    async function init() {
+      try {
+        const res = await fetch('/auth-status');
+        const data = await res.json();
+        if (data.auth_required) {
+          ask();
+        } else {
+          connect('');
+        }
+      } catch {
+        connect('');
+      }
+    }
+
+    function ask(isError = false) {
+      input.style.display = 'block';
+      if (isError) input.classList.add('error');
+      else input.classList.remove('error');
+      input.value = '';
+      input.focus();
+    }
+
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        input.style.display = 'none';
+        connect(input.value);
+      }
+    };
+
+    function connect(password) {
+      const query = password ? `?password=${encodeURIComponent(password)}` : '';
+      ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws${query}`);
+      ws.binaryType = 'arraybuffer';
+      ws.onopen = () => { term.focus(); resize(); };
+      ws.onmessage = (e) => term.write(typeof e.data === 'string' ? e.data : new Uint8Array(e.data));
+      ws.onclose = () => { term.write('\r\n[Disconnected / Unauthorized]\r\n'); ask(true); };
+      term.onData((d) => ws?.readyState === 1 && ws.send(d));
+    }
+
+    window.onresize = () => { fit.fit(); resize(); };
+    init();
+  </script>
+</body>
+
+</html>
