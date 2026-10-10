@@ -2,7 +2,19 @@
 set -e
 
 REPO="ZHOURA-24/zh_webterm"
-URL="https://github.com/$REPO/releases/latest/download/zh_webterm-linux-amd64"
+case "$(uname -m)" in
+    x86_64|amd64)
+        ASSET="zh_webterm-linux-amd64"
+        ;;
+    aarch64|arm64)
+        ASSET="zh_webterm-linux-arm64"
+        ;;
+    *)
+        echo "Unsupported Linux architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+URL="https://github.com/$REPO/releases/latest/download/$ASSET"
 
 echo "Stopping existing service if running..."
 if command -v systemctl >/dev/null 2>&1; then
